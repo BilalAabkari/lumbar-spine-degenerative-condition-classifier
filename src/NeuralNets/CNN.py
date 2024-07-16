@@ -1,0 +1,83 @@
+from turtle import Turtle
+import torch
+import torch.nn as nn
+import torch.optim as optim
+import torch.nn.functional as F
+import torchvision.models as models
+
+class CustomResNet34(nn.Module):
+    def __init__(self, num_conditions, num_disc_levels):
+        super(CustomResNet34, self).__init__()
+        self.resnet = models.resnet18(pretrained=True)
+        
+        # Replace the final fully connected layer to match your output requirements
+        num_ftrs = self.resnet.fc.in_features
+        self.resnet.fc = nn.Linear(num_ftrs, num_conditions * num_disc_levels * 3)
+        
+        self.num_conditions = num_conditions
+        self.num_disc_levels = num_disc_levels
+        self.softmax = nn.Softmax(dim=1)
+    
+    def forward(self, x):
+        x = self.resnet(x)
+        x = self.softmax(x.view(-1, self.num_disc_levels, self.num_conditions, 3))
+        return x
+
+
+
+class ConvNetV1(nn.Module):
+    def __init__(self, size):
+        super(ConvNetV1, self).__init__()
+        self.conv1 = nn.Conv2d(1, 8, 5, padding=2)
+        self.bn1 = nn.BatchNorm2d(8)
+        self.pool1 = nn.MaxPool2d(2, 2)
+
+        self.conv2 = nn.Conv2d(8, 16, 5, padding=2)
+        self.bn2 = nn.BatchNorm2d(16)
+        self.pool2 = nn.MaxPool2d(2, 2)
+
+        self.conv3 = nn.Conv2d(16, 32, 3, padding=1)
+        self.bn3 = nn.BatchNorm2d(32)
+        self.pool3 = nn.MaxPool2d(2, 2)
+        
+        self.conv4 = nn.Conv2d(32, 64, 3, padding=1)
+        self.bn4 = nn.BatchNorm2d(64)
+
+        self.linear1 = nn.Linear(64*32*32, 1024)
+        self.linear2 = nn.Linear(1024, 512)
+        self.linear3 = nn.Linear(512, 75)
+
+    def forward(self, x):
+        show_shapes = False
+
+        x = self.pool1(F.relu(self.bn1(self.conv1(x))))
+        if show_shapes:
+            print(x.shape)
+
+        x = self.pool2(F.relu(self.bn2(self.conv2(x))))
+        if show_shapes:
+            print(x.shape)
+
+        x = self.pool3(F.relu(self.bn3(self.conv3(x))))
+        if show_shapes:
+            print(x.shape)
+
+        x = F.relu(self.bn4(self.conv4(x)))
+        if show_shapes:
+            print(x.shape)
+
+        x = torch.flatten(x, 1)
+        x = F.relu(self.linear1(x))
+        if show_shapes:
+            print(x.shape)
+
+        x = F.relu(self.linear2(x))
+        if show_shapes:
+            print(x.shape)
+
+        x = self.linear3(x)
+        if show_shapes:
+            print(x.shape)
+
+        x = F.softmax(x.view(-1, 5, 5, 3), dim=3)
+        return x
