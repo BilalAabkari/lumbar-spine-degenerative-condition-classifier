@@ -21,5 +21,20 @@ def Accuracy(data, target_severities):
             else:
                 fails = fails + 1
 
-    accuracy = hits/(hits+fails) * 100
+    #accuracy = hits/(hits+fails) * 100
     return hits
+
+
+def AccuracyEfficient(data, target_severities):
+    # Compute the predicted labels by taking the argmax along dimension 3
+    predicted_labels = torch.argmax(data, dim=3)
+    
+    # Convert target_severities to integer type
+    target_severities = target_severities.int()
+    
+    # Compute the accuracy by comparing predicted_labels and target_severities
+    hits = (predicted_labels == target_severities).sum().item()
+    total = target_severities.numel()
+    accuracy = hits / total * 100
+    
+    return accuracy
